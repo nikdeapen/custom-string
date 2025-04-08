@@ -185,6 +185,12 @@ macro_rules! custom_string {
             }
         }
 
+        impl std::borrow::Borrow<str> for $owned_struct_name {
+            fn borrow(&self) -> &str {
+                self.value.borrow()
+            }
+        }
+
         impl std::fmt::Display for $owned_struct_name {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 write!(f, "{}", self.value)
