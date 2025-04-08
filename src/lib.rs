@@ -173,6 +173,12 @@ macro_rules! custom_string {
             }
         }
 
+        impl<'a> From<$ref_struct_name<'a>> for $owned_struct_name {
+            fn from(reference: $ref_struct_name<'a>) -> Self {
+                reference.to_owned()
+            }
+        }
+
         impl AsRef<str> for $owned_struct_name {
             fn as_ref(&self) -> &str {
                 self.value.as_ref()
