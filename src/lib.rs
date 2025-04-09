@@ -179,6 +179,18 @@ macro_rules! custom_string {
             }
         }
 
+        impl From<$owned_struct_name> for String {
+            fn from(value: $owned_struct_name) -> Self {
+                value.value
+            }
+        }
+
+        impl<'a> From<$ref_struct_name<'a>> for String {
+            fn from(value: $ref_struct_name<'a>) -> Self {
+                value.to_string()
+            }
+        }
+
         impl AsRef<str> for $owned_struct_name {
             fn as_ref(&self) -> &str {
                 self.value.as_ref()
