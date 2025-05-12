@@ -76,7 +76,7 @@ macro_rules! custom_string {
 
             #[doc = concat!("Creates a new `", stringify!($owned_struct_name), "` from the `value`.")]
             #[doc = ""]
-            #[doc = "# Unsafe"]
+            #[doc = "# Safety"]
             #[doc = "The `value` must be valid."]
             pub unsafe fn new_unchecked<S>(value: S) -> Self
             where
@@ -103,7 +103,7 @@ macro_rules! custom_string {
 
             #[doc = concat!("Creates a new `", stringify!($ref_struct_name), "` from the `value`.")]
             #[doc = ""]
-            #[doc = "# Unsafe"]
+            #[doc = "# Safety"]
             #[doc = "The `value` must be valid."]
             pub unsafe fn new_unchecked(value: &'a str) -> Self {
                 debug_assert!(Self::is_valid(value));
@@ -159,7 +159,7 @@ macro_rules! custom_string {
             //! Conversions
 
             /// Converts the owned type to a reference type.
-            pub fn to_ref<'a>(&'a self) -> $ref_struct_name<'a> {
+            pub fn to_ref(&self) -> $ref_struct_name {
                 unsafe { $ref_struct_name::new_unchecked(self.value.as_str()) }
             }
         }
@@ -168,7 +168,7 @@ macro_rules! custom_string {
             //! Conversions
 
             /// Converts the reference type to an owned type.
-            pub fn to_owned(&self) -> $owned_struct_name {
+            pub fn to_owned(self) -> $owned_struct_name {
                 unsafe { $owned_struct_name::new_unchecked(self.value.to_string()) }
             }
         }
