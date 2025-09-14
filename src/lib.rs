@@ -59,10 +59,7 @@ macro_rules! custom_string {
             /// Returns `Ok(value)`.
             /// Returns `Err(error_message)` if the `value` is invalid.
             pub fn validate(value: &str) -> Result<&str, &'static str> {
-                match $validate_fn(value) {
-                    Ok(()) => Ok(value),
-                    Err(e) => Err(e),
-                }
+                $owned_struct_name::validate(value)
             }
 
             /// Checks if the `value` is valid.
