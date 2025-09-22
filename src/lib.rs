@@ -228,7 +228,7 @@ macro_rules! custom_string {
 
         #[doc = concat!("An element with a `", stringify!($owned_struct_name), "`.")]
         pub trait $with_trait_name {
-            #[doc = concat!("Gets the `", stringify!($ref_struct_name), "`.")]
+            #[doc = concat!("Gets the `", stringify!($field_name), "`.")]
             fn $field_name(&self) -> $ref_struct_name<'_>;
         }
 
