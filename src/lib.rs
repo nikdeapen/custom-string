@@ -4,6 +4,8 @@ macro_rules! custom_string {
         $(#[$meta:meta])*,
         $owned_struct_name:ident,
         $ref_struct_name:ident,
+        $with_trait_name:ident,
+        $field_name:ident,
         $validate_fn:expr
     ) => {
 
@@ -223,13 +225,31 @@ macro_rules! custom_string {
                 write!(f, "{}", self.value)
             }
         }
+
+        #[doc = concat!("An element with a `", stringify!($owned_struct_name), "`.")]
+        pub trait $with_trait_name {
+            #[doc = concat!("Gets the `", stringify!($field_name), "`.")]
+            fn $field_name(&self) -> $ref_struct_name<'_>;
+        }
+
+        impl $with_trait_name for $owned_struct_name {
+            fn $field_name(&self) -> $ref_struct_name<'_> {
+                $ref_struct_name { value: self.value.as_str() }
+            }
+        }
+
+        impl $with_trait_name for $ref_struct_name<'_> {
+            fn $field_name(&self) -> $ref_struct_name<'_> {
+                *self
+            }
+        }
     };
 }
 
 #[cfg(test)]
 #[allow(dead_code)]
 mod tests {
-    custom_string!(#[doc = "A lowercase string."], Lower, LowerRef, |s: &str| if !s
+    custom_string!(#[doc = "A lowercase string."], Lower, LowerRef, WithLower, lower, |s: &str| if !s
         .as_bytes()
         .iter()
         .all(|c| c.is_ascii_lowercase())
