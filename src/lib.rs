@@ -238,8 +238,8 @@ macro_rules! custom_string {
             }
         }
 
-        impl $with_trait_name for $ref_struct_name<'_> {
-            fn $field_name(&self) -> $ref_struct_name<'_> {
+        impl<'a> $with_trait_name for $ref_struct_name<'a> {
+            fn $field_name(&self) -> $ref_struct_name<'a> {
                 *self
             }
         }
