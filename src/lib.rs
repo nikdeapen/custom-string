@@ -227,18 +227,12 @@ macro_rules! custom_string {
         }
 
         #[doc = concat!("An element with a `", stringify!($owned_struct_name), "`.")]
-        pub trait $with_trait_name {
+        pub trait $with_trait_name<'a> {
             #[doc = concat!("Gets the `", stringify!($field_name), "`.")]
-            fn $field_name(&self) -> $ref_struct_name<'_>;
+            fn $field_name(&self) -> $ref_struct_name<'a>;
         }
 
-        impl $with_trait_name for $owned_struct_name {
-            fn $field_name(&self) -> $ref_struct_name<'_> {
-                $ref_struct_name { value: self.value.as_str() }
-            }
-        }
-
-        impl<'a> $with_trait_name for $ref_struct_name<'a> {
+        impl<'a> $with_trait_name<'a> for $ref_struct_name<'a> {
             fn $field_name(&self) -> $ref_struct_name<'a> {
                 *self
             }
