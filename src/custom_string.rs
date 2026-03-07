@@ -517,9 +517,6 @@ mod tests {
         assert_eq!(owned, cloned);
 
         let reference: LowerRef = LowerRef::new("abc").unwrap();
-        let cloned: LowerRef = reference.clone();
-        assert_eq!(reference, cloned);
-
         let copied: LowerRef = reference;
         assert_eq!(reference, copied);
     }
