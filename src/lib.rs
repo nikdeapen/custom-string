@@ -8,3 +8,10 @@ pub use validation_error::*;
 mod validation_error;
 
 mod custom_string;
+
+#[doc(hidden)]
+pub use paste::paste as __paste;
+
+#[cfg(feature = "serde")]
+#[doc(hidden)]
+pub use serde as __serde;

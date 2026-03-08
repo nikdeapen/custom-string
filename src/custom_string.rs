@@ -5,7 +5,7 @@ macro_rules! custom_string {
         $owned_struct_name:ident,
         $validate_fn:expr
     ) => {
-        paste::paste! {
+        $crate::__paste! {
 
         $(#[$meta])*
         #[derive(Clone, Ord, PartialOrd, Eq, Hash, Debug)]
@@ -285,39 +285,71 @@ macro_rules! custom_string {
             }
         }
 
-        #[cfg(feature = "serde")]
-        impl serde::Serialize for $owned_struct_name {
-            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-            where
-                S: serde::Serializer,
-            {
-                self.value.serialize(serializer)
+        #[doc = concat!("An element with a `", stringify!($owned_struct_name), "`.")]
+        pub trait [<With $owned_struct_name>] {
+            #[doc = concat!("Gets the `", stringify!($owned_struct_name), "`.")]
+            fn [<$owned_struct_name:snake>](&self) -> [<$owned_struct_name Ref>]<'_>;
+        }
+
+        impl [<With $owned_struct_name>] for $owned_struct_name {
+            fn [<$owned_struct_name:snake>](&self) -> [<$owned_struct_name Ref>]<'_> {
+                self.to_ref()
             }
         }
 
-        #[cfg(feature = "serde")]
-        impl<'a> serde::Serialize for [<$owned_struct_name Ref>]<'a> {
-            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-            where
-                S: serde::Serializer,
-            {
-                self.value.serialize(serializer)
+        impl<'a> [<With $owned_struct_name>] for [<$owned_struct_name Ref>]<'a> {
+            fn [<$owned_struct_name:snake>](&self) -> [<$owned_struct_name Ref>]<'_> {
+                *self
             }
         }
 
-        #[cfg(feature = "serde")]
-        impl<'de> serde::Deserialize<'de> for $owned_struct_name {
-            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                let value: String = String::deserialize(deserializer)?;
-                Self::new(value).map_err(serde::de::Error::custom)
-            }
-        }
+        $crate::__custom_string_serde_impl!($owned_struct_name, [<$owned_struct_name Ref>]);
 
         }
     };
+}
+
+#[cfg(feature = "serde")]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __custom_string_serde_impl {
+    ($owned_struct_name:ident, $ref_struct_name:ident) => {
+        impl $crate::__serde::Serialize for $owned_struct_name {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: $crate::__serde::Serializer,
+            {
+                $crate::__serde::Serialize::serialize(&self.value, serializer)
+            }
+        }
+
+        impl<'a> $crate::__serde::Serialize for $ref_struct_name<'a> {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: $crate::__serde::Serializer,
+            {
+                $crate::__serde::Serialize::serialize(&self.value, serializer)
+            }
+        }
+
+        impl<'de> $crate::__serde::Deserialize<'de> for $owned_struct_name {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: $crate::__serde::Deserializer<'de>,
+            {
+                let value: String =
+                    <String as $crate::__serde::Deserialize>::deserialize(deserializer)?;
+                Self::new(value).map_err(<D::Error as $crate::__serde::de::Error>::custom)
+            }
+        }
+    };
+}
+
+#[cfg(not(feature = "serde"))]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __custom_string_serde_impl {
+    ($owned_struct_name:ident, $ref_struct_name:ident) => {};
 }
 
 #[cfg(test)]
