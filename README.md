@@ -6,7 +6,7 @@
 
 This library aids in generating string types with custom validation.
 
-    custom-string = "0.10.0-rc.1"
+    custom-string = "0.10.0"
 
 ## Features
 
