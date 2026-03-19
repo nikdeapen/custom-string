@@ -1,6 +1,6 @@
 [package]
 name = "custom-string"
-version = "0.9.0"
+version = "0.10.0"
 description = "This library aids in generating string types with custom validation."
 readme = "README.md"
 repository = "https://github.com/nikdeapen/custom-string"
