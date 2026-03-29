@@ -1,5 +1,5 @@
 /// An error validating the value of a custom string.
-#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub struct ValidationError {
     message: &'static str,
 }
@@ -11,8 +11,12 @@ impl ValidationError {
     pub fn new(message: &'static str) -> Self {
         Self { message }
     }
+}
 
-    /// Gets the error message.
+impl ValidationError {
+    //! Properties
+
+    /// Gets the message.
     pub fn message(&self) -> &'static str {
         self.message
     }

@@ -7,304 +7,303 @@ macro_rules! custom_string {
     ) => {
         $crate::__paste! {
 
-        $(#[$meta])*
-        #[derive(Clone, Ord, PartialOrd, Eq, Hash, Debug)]
-        pub struct $owned_struct_name {
-            value: String,
-        }
-
-        $(#[$meta])*
-        #[derive(Copy, Clone, Ord, PartialOrd, Eq, Hash, Debug)]
-        pub struct [<$owned_struct_name Ref>]<'a> {
-            value: &'a str,
-        }
-
-        impl<S: AsRef<str>> PartialEq<S> for $owned_struct_name {
-            fn eq(&self, other: &S) -> bool {
-                self.value() == other.as_ref()
+            $(#[$meta])*
+            #[derive(Clone, Eq, Ord, PartialOrd, Hash, Debug)]
+            pub struct $owned_struct_name {
+                value: String,
             }
-        }
 
-        impl<'a, S: AsRef<str>> PartialEq<S> for [<$owned_struct_name Ref>]<'a> {
-            fn eq(&self, other: &S) -> bool {
-                self.value() == other.as_ref()
+            $(#[$meta])*
+            #[derive(Copy, Clone, Eq, Ord, PartialOrd, Hash, Debug)]
+            pub struct [<$owned_struct_name Ref>]<'a> {
+                value: &'a str,
             }
-        }
 
-        impl $owned_struct_name {
-            //! Validation
-
-            /// Validates the `value`.
-            ///
-            /// Returns `Ok(value)`.
-            /// Returns `Err(error)` if the `value` is invalid.
-            pub fn validate(value: &str) -> Result<&str, $crate::ValidationError> {
-                match $validate_fn(value) {
-                    Ok(()) => Ok(value),
-                    Err(e) => Err($crate::ValidationError::new(e)),
+            impl<S: AsRef<str>> PartialEq<S> for $owned_struct_name {
+                fn eq(&self, other: &S) -> bool {
+                    self.value() == other.as_ref()
                 }
             }
 
-            /// Checks if the `value` is valid.
-            pub fn is_valid(value: &str) -> bool {
-                Self::validate(value).is_ok()
-            }
-        }
-
-        impl<'a> [<$owned_struct_name Ref>]<'a> {
-            //! Validation
-
-            /// Validates the `value`.
-            ///
-            /// Returns `Ok(value)`.
-            /// Returns `Err(error)` if the `value` is invalid.
-            pub fn validate(value: &str) -> Result<&str, $crate::ValidationError> {
-                $owned_struct_name::validate(value)
+            impl<'a, S: AsRef<str>> PartialEq<S> for [<$owned_struct_name Ref>]<'a> {
+                fn eq(&self, other: &S) -> bool {
+                    self.value() == other.as_ref()
+                }
             }
 
-            /// Checks if the `value` is valid.
-            pub fn is_valid(value: &str) -> bool {
-                Self::validate(value).is_ok()
-            }
-        }
-
-        impl $owned_struct_name {
-            //! Construction
-
-            #[doc = concat!("Creates a new `", stringify!($owned_struct_name), "` from the `value`.")]
-            #[doc = ""]
-            #[doc = "# Safety"]
-            #[doc = "The `value` must be valid."]
-            pub unsafe fn new_unchecked<S>(value: S) -> Self
-            where
-                S: Into<String>,
-            {
-                let value: String = value.into();
-
-                debug_assert!(Self::is_valid(value.as_str()));
-
-                Self { value }
+            impl<'a> PartialOrd<[<$owned_struct_name Ref>]<'a>> for $owned_struct_name {
+                fn partial_cmp(&self, other: &[<$owned_struct_name Ref>]<'a>) -> Option<std::cmp::Ordering> {
+                    self.value().partial_cmp(other.value())
+                }
             }
 
-            #[doc = concat!("Creates a new `", stringify!($owned_struct_name), "` from the `value`.")]
-            pub fn new<S>(value: S) -> Result<Self, $crate::ValidationError>
-            where
-                S: AsRef<str> + Into<String>,
-            {
-                Self::validate(value.as_ref())?;
-                Ok(unsafe { Self::new_unchecked(value) })
-            }
-        }
-
-        impl<'a> [<$owned_struct_name Ref>]<'a> {
-            //! Construction
-
-            #[doc = concat!("Creates a new `", stringify!([<$owned_struct_name Ref>]), "` from the `value`.")]
-            #[doc = ""]
-            #[doc = "# Safety"]
-            #[doc = "The `value` must be valid."]
-            pub unsafe fn new_unchecked(value: &'a str) -> Self {
-                debug_assert!(Self::is_valid(value));
-
-                Self { value }
+            impl<'a> PartialOrd<$owned_struct_name> for [<$owned_struct_name Ref>]<'a> {
+                fn partial_cmp(&self, other: &$owned_struct_name) -> Option<std::cmp::Ordering> {
+                    self.value().partial_cmp(other.value())
+                }
             }
 
-            #[doc = concat!("Creates a new `", stringify!([<$owned_struct_name Ref>]), "` from the `value`.")]
-            pub fn new(value: &'a str) -> Result<Self, $crate::ValidationError> {
-                Ok(unsafe { Self::new_unchecked(Self::validate(value)?) })
-            }
-        }
+            impl $owned_struct_name {
+                //! Validation
 
-        impl $owned_struct_name {
-            //! Properties
+                /// Validates the `value`.
+                ///
+                /// Returns `Ok(value)`.
+                /// Returns `Err(error)` if the `value` is invalid.
+                pub fn validate(value: &str) -> Result<&str, $crate::ValidationError> {
+                    match $validate_fn(value) {
+                        Ok(()) => Ok(value),
+                        Err(e) => Err($crate::ValidationError::new(e)),
+                    }
+                }
 
-            /// Gets the value.
-            pub fn value(&self) -> &str {
-                self.value.as_str()
-            }
-
-            /// Gets the length of the value. (in bytes)
-            pub fn len(&self) -> usize {
-                self.value.len()
-            }
-
-            /// Checks if the value is empty.
-            pub fn is_empty(&self) -> bool {
-                self.value.is_empty()
-            }
-        }
-
-        impl<'a> [<$owned_struct_name Ref>]<'a> {
-            //! Properties
-
-            /// Gets the value.
-            pub fn value(&self) -> &str {
-                self.value
+                /// Checks if the `value` is valid.
+                pub fn is_valid(value: &str) -> bool {
+                    Self::validate(value).is_ok()
+                }
             }
 
-            /// Gets the length of the value. (in bytes)
-            pub fn len(&self) -> usize {
-                self.value.len()
+            impl<'a> [<$owned_struct_name Ref>]<'a> {
+                //! Validation
+
+                /// Validates the `value`.
+                ///
+                /// Returns `Ok(value)`.
+                /// Returns `Err(error)` if the `value` is invalid.
+                pub fn validate(value: &str) -> Result<&str, $crate::ValidationError> {
+                    $owned_struct_name::validate(value)
+                }
+
+                /// Checks if the `value` is valid.
+                pub fn is_valid(value: &str) -> bool {
+                    Self::validate(value).is_ok()
+                }
             }
 
-            /// Checks if the value is empty.
-            pub fn is_empty(&self) -> bool {
-                self.value.is_empty()
+            impl $owned_struct_name {
+                //! Construction
+
+                #[doc = concat!("Creates a new [", stringify!($owned_struct_name), "] from the `value`.")]
+                #[doc = ""]
+                #[doc = "# Safety"]
+                #[doc = "The `value` must be valid."]
+                pub unsafe fn new_unchecked<S>(value: S) -> Self
+                where
+                    S: Into<String>,
+                {
+                    let value: String = value.into();
+
+                    debug_assert!(Self::is_valid(value.as_str()));
+
+                    Self { value }
+                }
+
+                #[doc = concat!("Creates a new [", stringify!($owned_struct_name), "] from the `value`.")]
+                pub fn new<S>(value: S) -> Result<Self, $crate::ValidationError>
+                where
+                    S: AsRef<str> + Into<String>,
+                {
+                    Self::validate(value.as_ref())?;
+                    Ok(unsafe { Self::new_unchecked(value) })
+                }
             }
-        }
 
-        impl $owned_struct_name {
-            //! Conversions
+            impl<'a> [<$owned_struct_name Ref>]<'a> {
+                //! Construction
 
-            /// Converts the owned type to a reference type.
-            pub fn to_ref(&self) -> [<$owned_struct_name Ref>]<'_> {
-                unsafe { [<$owned_struct_name Ref>]::new_unchecked(self.value.as_str()) }
+                #[doc = concat!("Creates a new [", stringify!([<$owned_struct_name Ref>]), "] from the `value`.")]
+                #[doc = ""]
+                #[doc = "# Safety"]
+                #[doc = "The `value` must be valid."]
+                pub unsafe fn new_unchecked(value: &'a str) -> Self {
+                    debug_assert!(Self::is_valid(value));
+
+                    Self { value }
+                }
+
+                #[doc = concat!("Creates a new [", stringify!([<$owned_struct_name Ref>]), "] from the `value`.")]
+                pub fn new(value: &'a str) -> Result<Self, $crate::ValidationError> {
+                    Ok(unsafe { Self::new_unchecked(Self::validate(value)?) })
+                }
             }
-        }
 
-        impl<'a> [<$owned_struct_name Ref>]<'a> {
-            //! Conversions
+            impl $owned_struct_name {
+                //! Properties
 
-            /// Converts the reference type to an owned type.
-            pub fn to_owned(self) -> $owned_struct_name {
-                unsafe { $owned_struct_name::new_unchecked(self.value.to_string()) }
+                /// Gets the value.
+                pub fn value(&self) -> &str {
+                    self.value.as_str()
+                }
+
+                /// Gets the length of the value. (in bytes)
+                pub fn len(&self) -> usize {
+                    self.value.len()
+                }
+
+                /// Checks if the value is empty.
+                pub fn is_empty(&self) -> bool {
+                    self.value.is_empty()
+                }
             }
-        }
 
-        impl<'a> From<[<$owned_struct_name Ref>]<'a>> for $owned_struct_name {
-            fn from(reference: [<$owned_struct_name Ref>]<'a>) -> Self {
-                reference.to_owned()
+            impl<'a> [<$owned_struct_name Ref>]<'a> {
+                //! Properties
+
+                /// Gets the value.
+                pub fn value(&self) -> &str {
+                    self.value
+                }
+
+                /// Gets the length of the value. (in bytes)
+                pub fn len(&self) -> usize {
+                    self.value.len()
+                }
+
+                /// Checks if the value is empty.
+                pub fn is_empty(&self) -> bool {
+                    self.value.is_empty()
+                }
             }
-        }
 
-        impl From<$owned_struct_name> for String {
-            fn from(value: $owned_struct_name) -> Self {
-                value.value
+            impl $owned_struct_name {
+                //! Conversions
+
+                /// Converts the owned type to a reference type.
+                pub fn to_ref(&self) -> [<$owned_struct_name Ref>]<'_> {
+                    unsafe { [<$owned_struct_name Ref>]::new_unchecked(self.value.as_str()) }
+                }
             }
-        }
 
-        impl<'a> From<[<$owned_struct_name Ref>]<'a>> for String {
-            fn from(value: [<$owned_struct_name Ref>]<'a>) -> Self {
-                value.to_string()
+            impl<'a> [<$owned_struct_name Ref>]<'a> {
+                //! Conversions
+
+                /// Converts the reference type to an owned type.
+                pub fn to_owned(self) -> $owned_struct_name {
+                    unsafe { $owned_struct_name::new_unchecked(self.value.to_string()) }
+                }
             }
-        }
 
-        impl TryFrom<String> for $owned_struct_name {
-            type Error = $crate::ValidationError;
-
-            fn try_from(value: String) -> Result<Self, Self::Error> {
-                Self::new(value)
+            impl<'a> From<[<$owned_struct_name Ref>]<'a>> for $owned_struct_name {
+                fn from(reference: [<$owned_struct_name Ref>]<'a>) -> Self {
+                    reference.to_owned()
+                }
             }
-        }
 
-        impl<'a> TryFrom<&'a str> for $owned_struct_name {
-            type Error = $crate::ValidationError;
-
-            fn try_from(value: &'a str) -> Result<Self, Self::Error> {
-                Self::new(value)
+            impl From<$owned_struct_name> for String {
+                fn from(value: $owned_struct_name) -> Self {
+                    value.value
+                }
             }
-        }
 
-        impl<'a> TryFrom<&'a str> for [<$owned_struct_name Ref>]<'a> {
-            type Error = $crate::ValidationError;
-
-            fn try_from(value: &'a str) -> Result<Self, Self::Error> {
-                Self::new(value)
+            impl<'a> From<[<$owned_struct_name Ref>]<'a>> for String {
+                fn from(value: [<$owned_struct_name Ref>]<'a>) -> Self {
+                    value.value.to_owned()
+                }
             }
-        }
 
-        impl AsRef<str> for $owned_struct_name {
-            fn as_ref(&self) -> &str {
-                self.value.as_str()
+            impl TryFrom<String> for $owned_struct_name {
+                type Error = $crate::ValidationError;
+
+                fn try_from(value: String) -> Result<Self, Self::Error> {
+                    Self::new(value)
+                }
             }
-        }
 
-        impl<'a> AsRef<str> for [<$owned_struct_name Ref>]<'a> {
-            fn as_ref(&self) -> &str {
-                self.value
+            impl<'a> TryFrom<&'a str> for $owned_struct_name {
+                type Error = $crate::ValidationError;
+
+                fn try_from(value: &'a str) -> Result<Self, Self::Error> {
+                    Self::new(value)
+                }
             }
-        }
 
-        impl std::borrow::Borrow<str> for $owned_struct_name {
-            fn borrow(&self) -> &str {
-                self.value.as_str()
+            impl<'a> TryFrom<&'a str> for [<$owned_struct_name Ref>]<'a> {
+                type Error = $crate::ValidationError;
+
+                fn try_from(value: &'a str) -> Result<Self, Self::Error> {
+                    Self::new(value)
+                }
             }
-        }
 
-        impl<'a> std::borrow::Borrow<str> for [<$owned_struct_name Ref>]<'a> {
-            fn borrow(&self) -> &str {
-                self.value
+            impl AsRef<str> for $owned_struct_name {
+                fn as_ref(&self) -> &str {
+                    self.value.as_str()
+                }
             }
-        }
 
-        impl std::ops::Deref for $owned_struct_name {
-            type Target = str;
-
-            fn deref(&self) -> &str {
-                self.value.as_str()
+            impl<'a> AsRef<str> for [<$owned_struct_name Ref>]<'a> {
+                fn as_ref(&self) -> &str {
+                    self.value
+                }
             }
-        }
 
-        impl<'a> std::ops::Deref for [<$owned_struct_name Ref>]<'a> {
-            type Target = str;
-
-            fn deref(&self) -> &str {
-                self.value
+            impl std::borrow::Borrow<str> for $owned_struct_name {
+                fn borrow(&self) -> &str {
+                    self.value.as_str()
+                }
             }
-        }
 
-        impl std::fmt::Display for $owned_struct_name {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                write!(f, "{}", self.value)
+            impl<'a> std::borrow::Borrow<str> for [<$owned_struct_name Ref>]<'a> {
+                fn borrow(&self) -> &str {
+                    self.value
+                }
             }
-        }
 
-        impl<'a> std::fmt::Display for [<$owned_struct_name Ref>]<'a> {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                write!(f, "{}", self.value)
+            impl std::ops::Deref for $owned_struct_name {
+                type Target = str;
+
+                fn deref(&self) -> &str {
+                    self.value.as_str()
+                }
             }
-        }
 
-        impl std::str::FromStr for $owned_struct_name {
-            type Err = $crate::ValidationError;
+            impl<'a> std::ops::Deref for [<$owned_struct_name Ref>]<'a> {
+                type Target = str;
 
-            fn from_str(s: &str) -> Result<Self, Self::Err> {
-                Self::new(s)
+                fn deref(&self) -> &str {
+                    self.value
+                }
             }
-        }
 
-        impl<'a> PartialOrd<[<$owned_struct_name Ref>]<'a>> for $owned_struct_name {
-            fn partial_cmp(&self, other: &[<$owned_struct_name Ref>]<'a>) -> Option<std::cmp::Ordering> {
-                self.value().partial_cmp(other.value())
+            impl std::fmt::Display for $owned_struct_name {
+                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    f.write_str(self.value())
+                }
             }
-        }
 
-        impl<'a> PartialOrd<$owned_struct_name> for [<$owned_struct_name Ref>]<'a> {
-            fn partial_cmp(&self, other: &$owned_struct_name) -> Option<std::cmp::Ordering> {
-                self.value().partial_cmp(other.value())
+            impl<'a> std::fmt::Display for [<$owned_struct_name Ref>]<'a> {
+                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    f.write_str(self.value)
+                }
             }
-        }
 
-        #[doc = concat!("An element with a `", stringify!($owned_struct_name), "`.")]
-        pub trait [<With $owned_struct_name>] {
-            #[doc = concat!("Gets the `", stringify!($owned_struct_name), "`.")]
-            fn [<$owned_struct_name:snake>](&self) -> [<$owned_struct_name Ref>]<'_>;
-        }
+            impl std::str::FromStr for $owned_struct_name {
+                type Err = $crate::ValidationError;
 
-        impl [<With $owned_struct_name>] for $owned_struct_name {
-            fn [<$owned_struct_name:snake>](&self) -> [<$owned_struct_name Ref>]<'_> {
-                self.to_ref()
+                fn from_str(s: &str) -> Result<Self, Self::Err> {
+                    Self::new(s)
+                }
             }
-        }
 
-        impl<'a> [<With $owned_struct_name>] for [<$owned_struct_name Ref>]<'a> {
-            fn [<$owned_struct_name:snake>](&self) -> [<$owned_struct_name Ref>]<'_> {
-                *self
+            #[doc = concat!("An element with a [", stringify!($owned_struct_name), "].")]
+            pub trait [<With $owned_struct_name>] {
+                #[doc = concat!("Gets the [", stringify!($owned_struct_name), "].")]
+                fn [<$owned_struct_name:snake>](&self) -> [<$owned_struct_name Ref>]<'_>;
             }
-        }
 
-        $crate::__custom_string_serde_impl!($owned_struct_name, [<$owned_struct_name Ref>]);
+            impl [<With $owned_struct_name>] for $owned_struct_name {
+                fn [<$owned_struct_name:snake>](&self) -> [<$owned_struct_name Ref>]<'_> {
+                    self.to_ref()
+                }
+            }
 
+            impl<'a> [<With $owned_struct_name>] for [<$owned_struct_name Ref>]<'a> {
+                fn [<$owned_struct_name:snake>](&self) -> [<$owned_struct_name Ref>]<'_> {
+                    *self
+                }
+            }
+
+            $crate::__custom_string_serde_impl!($owned_struct_name, [<$owned_struct_name Ref>]);
         }
     };
 }
