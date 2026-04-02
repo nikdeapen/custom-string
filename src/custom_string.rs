@@ -169,6 +169,7 @@ macro_rules! custom_string {
                 //! Conversions
 
                 /// Converts the owned type to a reference type.
+                #[must_use]
                 pub fn to_ref(&self) -> [<$owned_struct_name Ref>]<'_> {
                     unsafe { [<$owned_struct_name Ref>]::new_unchecked(self.value.as_str()) }
                 }
@@ -178,14 +179,15 @@ macro_rules! custom_string {
                 //! Conversions
 
                 /// Converts the reference type to an owned type.
-                pub fn to_owned(self) -> $owned_struct_name {
+                #[must_use]
+                pub fn into_owned(self) -> $owned_struct_name {
                     unsafe { $owned_struct_name::new_unchecked(self.value.to_string()) }
                 }
             }
 
             impl<'a> From<[<$owned_struct_name Ref>]<'a>> for $owned_struct_name {
                 fn from(reference: [<$owned_struct_name Ref>]<'a>) -> Self {
-                    reference.to_owned()
+                    reference.into_owned()
                 }
             }
 
@@ -481,7 +483,7 @@ mod tests {
         let reference: LowerRef = owned.to_ref();
         assert_eq!(reference.value(), "abc");
 
-        let back_to_owned: Lower = reference.to_owned();
+        let back_to_owned: Lower = reference.into_owned();
         assert_eq!(back_to_owned.value(), "abc");
 
         let from_ref: Lower = Lower::from(reference);
