@@ -6,17 +6,21 @@
 
 This library aids in generating string types with custom validation.
 
-    custom-string = "0.11.0-rc.2"
+```text
+custom-string = "0.11.0"
+```
 
 ## Features
 
-    serde
+```text
+serde
+```
 
 For more features see the [Crate Docs](https://docs.rs/custom-string/latest/custom_string/).
 
 ## Example
 
-```rust,ignore
+```rust
 use custom_string::custom_string;
 
 custom_string!(
