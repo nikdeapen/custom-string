@@ -1,6 +1,6 @@
 [package]
 name = "custom-string"
-version = "0.11.0-rc.2"
+version = "0.11.0"
 description = "This library aids in generating string types with custom validation."
 readme = "README.md"
 repository = "https://github.com/nikdeapen/custom-string"
@@ -15,7 +15,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 document-features = { version = "0.2.12", optional = true }
-paste = "1.0.15"
+pastey = "0.2.3"
 serde = { version = "1.0.228", optional = true }
 
 [features]

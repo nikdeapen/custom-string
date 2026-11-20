@@ -1,45 +1,141 @@
+/// Declares a string type with custom validation.
+///
+/// # Syntax
+/// ```text
+/// custom_string!(
+///     #[doc = "The type docs."],
+///     TypeName,
+///     validate_fn
+/// );
+/// ```
+/// - The attributes are applied to both of the generated types. The comma after the attributes
+///   is required. (even when there are no attributes)
+/// - The `validate_fn` is any expression that can be called as
+///   `fn(&str) -> Result<(), &'static str>`.
+///
+/// # Generated Items
+/// - `TypeName` — The owned type. (wraps a `String`)
+/// - `TypeNameRef<'a>` — The `Copy` reference type. (wraps a `&'a str`)
+/// - `WithTypeName` — The trait for elements with a `TypeName`. It has a single
+///   `fn type_name(&self) -> TypeNameRef<'_>` function & is implemented for both types.
+///
+/// Both types can only be constructed with valid values. They deref to `str` & implement the
+/// standard ordering, hashing, formatting, & conversion traits.
+///
+/// With the `serde` feature both types implement `Serialize` & the owned type implements
+/// `Deserialize`. (deserialization validates the value)
+///
+/// # Equality
+/// Both types can be compared with each other & with `str`, `&str`, & `String`. (in either
+/// order) Different custom string types cannot be compared with each other:
+/// ```compile_fail
+/// use custom_string::custom_string;
+///
+/// custom_string!(#[doc = "A user id."], UserId, validate_id);
+/// custom_string!(#[doc = "An order id."], OrderId, validate_id);
+///
+/// fn validate_id(_: &str) -> Result<(), &'static str> {
+///     Ok(())
+/// }
+///
+/// let user_id: UserId = UserId::new("42").unwrap();
+/// let order_id: OrderId = OrderId::new("42").unwrap();
+/// assert!(user_id == order_id); // error: can't compare `UserId` with `OrderId`
+/// ```
+///
+/// # Note
+/// - The `WithTypeName` function is named with the snake-case type name. If this is a keyword
+///   the function is a raw identifier. (ex: `Type` has `fn r#type`) The type names `Crate` &
+///   `Super` are not supported.
+///
+/// # Example
+/// ```
+/// use custom_string::custom_string;
+///
+/// custom_string!(
+///     #[doc = "A non-empty string."],
+///     NonEmpty,
+///     validate_non_empty
+/// );
+///
+/// fn validate_non_empty(s: &str) -> Result<(), &'static str> {
+///     if s.is_empty() {
+///         Err("the string is empty")
+///     } else {
+///         Ok(())
+///     }
+/// }
+///
+/// let owned: NonEmpty = NonEmpty::new("hello").unwrap();
+/// let reference: NonEmptyRef = owned.to_ref();
+/// assert_eq!(owned, reference);
+/// assert_eq!(reference.value(), "hello");
+/// assert_eq!(owned.non_empty(), "hello");
+///
+/// assert!(NonEmptyRef::new("hello").is_ok());
+/// assert_eq!(NonEmpty::new("").unwrap_err().message(), "the string is empty");
+/// ```
 #[macro_export]
 macro_rules! custom_string {
     (
         $(#[$meta:meta])*,
         $owned_struct_name:ident,
-        $validate_fn:expr
+        $validate_fn:expr $(,)?
     ) => {
         $crate::__paste! {
 
             $(#[$meta])*
-            #[derive(Clone, Eq, Ord, PartialOrd, Hash, Debug)]
+            #[derive(
+                ::core::clone::Clone,
+                ::core::cmp::Eq,
+                ::core::cmp::PartialEq,
+                ::core::cmp::Ord,
+                ::core::cmp::PartialOrd,
+                ::core::hash::Hash,
+                ::core::fmt::Debug,
+            )]
             pub struct $owned_struct_name {
-                value: String,
+                value: ::std::string::String,
             }
 
             $(#[$meta])*
-            #[derive(Copy, Clone, Eq, Ord, PartialOrd, Hash, Debug)]
+            #[derive(
+                ::core::marker::Copy,
+                ::core::clone::Clone,
+                ::core::cmp::Eq,
+                ::core::cmp::PartialEq,
+                ::core::cmp::Ord,
+                ::core::cmp::PartialOrd,
+                ::core::hash::Hash,
+                ::core::fmt::Debug,
+            )]
             pub struct [<$owned_struct_name Ref>]<'a> {
                 value: &'a str,
             }
 
-            impl<S: AsRef<str>> PartialEq<S> for $owned_struct_name {
-                fn eq(&self, other: &S) -> bool {
-                    self.value() == other.as_ref()
+            $crate::__custom_string_eq_impl!([] $owned_struct_name, str);
+            $crate::__custom_string_eq_impl!(['b] $owned_struct_name, &'b str);
+            $crate::__custom_string_eq_impl!([] $owned_struct_name, ::std::string::String);
+            $crate::__custom_string_eq_impl!(['a] $owned_struct_name, [<$owned_struct_name Ref>]<'a>);
+            $crate::__custom_string_eq_impl!(['a] [<$owned_struct_name Ref>]<'a>, str);
+            $crate::__custom_string_eq_impl!(['a, 'b] [<$owned_struct_name Ref>]<'a>, &'b str);
+            $crate::__custom_string_eq_impl!(['a] [<$owned_struct_name Ref>]<'a>, ::std::string::String);
+
+            impl<'a> ::core::cmp::PartialOrd<[<$owned_struct_name Ref>]<'a>> for $owned_struct_name {
+                fn partial_cmp(
+                    &self,
+                    other: &[<$owned_struct_name Ref>]<'a>,
+                ) -> ::core::option::Option<::core::cmp::Ordering> {
+                    ::core::cmp::PartialOrd::partial_cmp(self.value(), other.value())
                 }
             }
 
-            impl<'a, S: AsRef<str>> PartialEq<S> for [<$owned_struct_name Ref>]<'a> {
-                fn eq(&self, other: &S) -> bool {
-                    self.value() == other.as_ref()
-                }
-            }
-
-            impl<'a> PartialOrd<[<$owned_struct_name Ref>]<'a>> for $owned_struct_name {
-                fn partial_cmp(&self, other: &[<$owned_struct_name Ref>]<'a>) -> Option<std::cmp::Ordering> {
-                    self.value().partial_cmp(other.value())
-                }
-            }
-
-            impl<'a> PartialOrd<$owned_struct_name> for [<$owned_struct_name Ref>]<'a> {
-                fn partial_cmp(&self, other: &$owned_struct_name) -> Option<std::cmp::Ordering> {
-                    self.value().partial_cmp(other.value())
+            impl<'a> ::core::cmp::PartialOrd<$owned_struct_name> for [<$owned_struct_name Ref>]<'a> {
+                fn partial_cmp(
+                    &self,
+                    other: &$owned_struct_name,
+                ) -> ::core::option::Option<::core::cmp::Ordering> {
+                    ::core::cmp::PartialOrd::partial_cmp(self.value(), other.value())
                 }
             }
 
@@ -50,10 +146,12 @@ macro_rules! custom_string {
                 ///
                 /// Returns `Ok(value)`.
                 /// Returns `Err(error)` if the `value` is invalid.
-                pub fn validate(value: &str) -> Result<&str, $crate::ValidationError> {
+                pub fn validate(value: &str) -> ::core::result::Result<&str, $crate::ValidationError> {
                     match $validate_fn(value) {
-                        Ok(()) => Ok(value),
-                        Err(e) => Err($crate::ValidationError::new(e)),
+                        ::core::result::Result::Ok(()) => ::core::result::Result::Ok(value),
+                        ::core::result::Result::Err(e) => {
+                            ::core::result::Result::Err($crate::ValidationError::new(e))
+                        }
                     }
                 }
 
@@ -70,7 +168,7 @@ macro_rules! custom_string {
                 ///
                 /// Returns `Ok(value)`.
                 /// Returns `Err(error)` if the `value` is invalid.
-                pub fn validate(value: &str) -> Result<&str, $crate::ValidationError> {
+                pub fn validate(value: &str) -> ::core::result::Result<&str, $crate::ValidationError> {
                     $owned_struct_name::validate(value)
                 }
 
@@ -89,22 +187,23 @@ macro_rules! custom_string {
                 #[doc = "The `value` must be valid."]
                 pub unsafe fn new_unchecked<S>(value: S) -> Self
                 where
-                    S: Into<String>,
+                    S: ::core::convert::Into<::std::string::String>,
                 {
-                    let value: String = value.into();
+                    let value: ::std::string::String = ::core::convert::Into::into(value);
 
-                    debug_assert!(Self::is_valid(value.as_str()));
+                    ::core::debug_assert!(Self::is_valid(value.as_str()));
 
                     Self { value }
                 }
 
                 #[doc = concat!("Creates a new [", stringify!($owned_struct_name), "] from the `value`.")]
-                pub fn new<S>(value: S) -> Result<Self, $crate::ValidationError>
+                pub fn new<S>(value: S) -> ::core::result::Result<Self, $crate::ValidationError>
                 where
-                    S: AsRef<str> + Into<String>,
+                    S: ::core::convert::Into<::std::string::String>,
                 {
-                    Self::validate(value.as_ref())?;
-                    Ok(unsafe { Self::new_unchecked(value) })
+                    let value: ::std::string::String = ::core::convert::Into::into(value);
+                    Self::validate(value.as_str())?;
+                    ::core::result::Result::Ok(unsafe { Self::new_unchecked(value) })
                 }
             }
 
@@ -116,14 +215,14 @@ macro_rules! custom_string {
                 #[doc = "# Safety"]
                 #[doc = "The `value` must be valid."]
                 pub unsafe fn new_unchecked(value: &'a str) -> Self {
-                    debug_assert!(Self::is_valid(value));
+                    ::core::debug_assert!(Self::is_valid(value));
 
                     Self { value }
                 }
 
                 #[doc = concat!("Creates a new [", stringify!([<$owned_struct_name Ref>]), "] from the `value`.")]
-                pub fn new(value: &'a str) -> Result<Self, $crate::ValidationError> {
-                    Ok(unsafe { Self::new_unchecked(Self::validate(value)?) })
+                pub fn new(value: &'a str) -> ::core::result::Result<Self, $crate::ValidationError> {
+                    ::core::result::Result::Ok(unsafe { Self::new_unchecked(Self::validate(value)?) })
                 }
             }
 
@@ -150,7 +249,7 @@ macro_rules! custom_string {
                 //! Properties
 
                 /// Gets the value.
-                pub fn value(&self) -> &str {
+                pub fn value(&self) -> &'a str {
                     self.value
                 }
 
@@ -181,77 +280,77 @@ macro_rules! custom_string {
                 /// Converts the reference type to an owned type.
                 #[must_use]
                 pub fn into_owned(self) -> $owned_struct_name {
-                    unsafe { $owned_struct_name::new_unchecked(self.value.to_string()) }
+                    unsafe { $owned_struct_name::new_unchecked(self.value) }
                 }
             }
 
-            impl<'a> From<[<$owned_struct_name Ref>]<'a>> for $owned_struct_name {
+            impl<'a> ::core::convert::From<[<$owned_struct_name Ref>]<'a>> for $owned_struct_name {
                 fn from(reference: [<$owned_struct_name Ref>]<'a>) -> Self {
                     reference.into_owned()
                 }
             }
 
-            impl From<$owned_struct_name> for String {
+            impl ::core::convert::From<$owned_struct_name> for ::std::string::String {
                 fn from(value: $owned_struct_name) -> Self {
                     value.value
                 }
             }
 
-            impl<'a> From<[<$owned_struct_name Ref>]<'a>> for String {
+            impl<'a> ::core::convert::From<[<$owned_struct_name Ref>]<'a>> for ::std::string::String {
                 fn from(value: [<$owned_struct_name Ref>]<'a>) -> Self {
-                    value.value.to_owned()
+                    value.into_owned().value
                 }
             }
 
-            impl TryFrom<String> for $owned_struct_name {
+            impl ::core::convert::TryFrom<::std::string::String> for $owned_struct_name {
                 type Error = $crate::ValidationError;
 
-                fn try_from(value: String) -> Result<Self, Self::Error> {
+                fn try_from(value: ::std::string::String) -> ::core::result::Result<Self, Self::Error> {
                     Self::new(value)
                 }
             }
 
-            impl<'a> TryFrom<&'a str> for $owned_struct_name {
+            impl<'a> ::core::convert::TryFrom<&'a str> for $owned_struct_name {
                 type Error = $crate::ValidationError;
 
-                fn try_from(value: &'a str) -> Result<Self, Self::Error> {
+                fn try_from(value: &'a str) -> ::core::result::Result<Self, Self::Error> {
                     Self::new(value)
                 }
             }
 
-            impl<'a> TryFrom<&'a str> for [<$owned_struct_name Ref>]<'a> {
+            impl<'a> ::core::convert::TryFrom<&'a str> for [<$owned_struct_name Ref>]<'a> {
                 type Error = $crate::ValidationError;
 
-                fn try_from(value: &'a str) -> Result<Self, Self::Error> {
+                fn try_from(value: &'a str) -> ::core::result::Result<Self, Self::Error> {
                     Self::new(value)
                 }
             }
 
-            impl AsRef<str> for $owned_struct_name {
+            impl ::core::convert::AsRef<str> for $owned_struct_name {
                 fn as_ref(&self) -> &str {
                     self.value.as_str()
                 }
             }
 
-            impl<'a> AsRef<str> for [<$owned_struct_name Ref>]<'a> {
+            impl<'a> ::core::convert::AsRef<str> for [<$owned_struct_name Ref>]<'a> {
                 fn as_ref(&self) -> &str {
                     self.value
                 }
             }
 
-            impl std::borrow::Borrow<str> for $owned_struct_name {
+            impl ::core::borrow::Borrow<str> for $owned_struct_name {
                 fn borrow(&self) -> &str {
                     self.value.as_str()
                 }
             }
 
-            impl<'a> std::borrow::Borrow<str> for [<$owned_struct_name Ref>]<'a> {
+            impl<'a> ::core::borrow::Borrow<str> for [<$owned_struct_name Ref>]<'a> {
                 fn borrow(&self) -> &str {
                     self.value
                 }
             }
 
-            impl std::ops::Deref for $owned_struct_name {
+            impl ::core::ops::Deref for $owned_struct_name {
                 type Target = str;
 
                 fn deref(&self) -> &str {
@@ -259,7 +358,7 @@ macro_rules! custom_string {
                 }
             }
 
-            impl<'a> std::ops::Deref for [<$owned_struct_name Ref>]<'a> {
+            impl<'a> ::core::ops::Deref for [<$owned_struct_name Ref>]<'a> {
                 type Target = str;
 
                 fn deref(&self) -> &str {
@@ -267,22 +366,22 @@ macro_rules! custom_string {
                 }
             }
 
-            impl std::fmt::Display for $owned_struct_name {
-                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            impl ::core::fmt::Display for $owned_struct_name {
+                fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
                     f.write_str(self.value())
                 }
             }
 
-            impl<'a> std::fmt::Display for [<$owned_struct_name Ref>]<'a> {
-                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            impl<'a> ::core::fmt::Display for [<$owned_struct_name Ref>]<'a> {
+                fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
                     f.write_str(self.value)
                 }
             }
 
-            impl std::str::FromStr for $owned_struct_name {
+            impl ::core::str::FromStr for $owned_struct_name {
                 type Err = $crate::ValidationError;
 
-                fn from_str(s: &str) -> Result<Self, Self::Err> {
+                fn from_str(s: &str) -> ::core::result::Result<Self, Self::Err> {
                     Self::new(s)
                 }
             }
@@ -290,22 +389,40 @@ macro_rules! custom_string {
             #[doc = concat!("An element with a [", stringify!($owned_struct_name), "].")]
             pub trait [<With $owned_struct_name>] {
                 #[doc = concat!("Gets the [", stringify!($owned_struct_name), "].")]
-                fn [<$owned_struct_name:snake>](&self) -> [<$owned_struct_name Ref>]<'_>;
+                fn [<# $owned_struct_name:snake>](&self) -> [<$owned_struct_name Ref>]<'_>;
             }
 
             impl [<With $owned_struct_name>] for $owned_struct_name {
-                fn [<$owned_struct_name:snake>](&self) -> [<$owned_struct_name Ref>]<'_> {
+                fn [<# $owned_struct_name:snake>](&self) -> [<$owned_struct_name Ref>]<'_> {
                     self.to_ref()
                 }
             }
 
             impl<'a> [<With $owned_struct_name>] for [<$owned_struct_name Ref>]<'a> {
-                fn [<$owned_struct_name:snake>](&self) -> [<$owned_struct_name Ref>]<'_> {
+                fn [<# $owned_struct_name:snake>](&self) -> [<$owned_struct_name Ref>]<'_> {
                     *self
                 }
             }
 
             $crate::__custom_string_serde_impl!($owned_struct_name, [<$owned_struct_name Ref>]);
+        }
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __custom_string_eq_impl {
+    ([$($generics:tt)*] $custom_type:ty, $other_type:ty) => {
+        impl<$($generics)*> ::core::cmp::PartialEq<$other_type> for $custom_type {
+            fn eq(&self, other: &$other_type) -> bool {
+                self.value() == <$other_type as ::core::convert::AsRef<str>>::as_ref(other)
+            }
+        }
+
+        impl<$($generics)*> ::core::cmp::PartialEq<$custom_type> for $other_type {
+            fn eq(&self, other: &$custom_type) -> bool {
+                <$other_type as ::core::convert::AsRef<str>>::as_ref(self) == other.value()
+            }
         }
     };
 }
@@ -316,7 +433,7 @@ macro_rules! custom_string {
 macro_rules! __custom_string_serde_impl {
     ($owned_struct_name:ident, $ref_struct_name:ident) => {
         impl $crate::__serde::Serialize for $owned_struct_name {
-            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            fn serialize<S>(&self, serializer: S) -> ::core::result::Result<S::Ok, S::Error>
             where
                 S: $crate::__serde::Serializer,
             {
@@ -325,7 +442,7 @@ macro_rules! __custom_string_serde_impl {
         }
 
         impl<'a> $crate::__serde::Serialize for $ref_struct_name<'a> {
-            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            fn serialize<S>(&self, serializer: S) -> ::core::result::Result<S::Ok, S::Error>
             where
                 S: $crate::__serde::Serializer,
             {
@@ -334,12 +451,14 @@ macro_rules! __custom_string_serde_impl {
         }
 
         impl<'de> $crate::__serde::Deserialize<'de> for $owned_struct_name {
-            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            fn deserialize<D>(deserializer: D) -> ::core::result::Result<Self, D::Error>
             where
                 D: $crate::__serde::Deserializer<'de>,
             {
-                let value: String =
-                    <String as $crate::__serde::Deserialize>::deserialize(deserializer)?;
+                let value: ::std::string::String =
+                    <::std::string::String as $crate::__serde::Deserialize>::deserialize(
+                        deserializer,
+                    )?;
                 Self::new(value).map_err(<D::Error as $crate::__serde::de::Error>::custom)
             }
         }
@@ -404,6 +523,27 @@ mod tests {
     }
 
     #[test]
+    fn construction_validates_converted_value() {
+        /// A value where `AsRef<str>` & `Into<String>` disagree.
+        struct Inconsistent;
+
+        impl AsRef<str> for Inconsistent {
+            fn as_ref(&self) -> &str {
+                "abc"
+            }
+        }
+
+        impl From<Inconsistent> for String {
+            fn from(_: Inconsistent) -> Self {
+                String::from("ABC")
+            }
+        }
+
+        let error: crate::ValidationError = Lower::new(Inconsistent).unwrap_err();
+        assert_eq!(error.message(), "not lowercase");
+    }
+
+    #[test]
     fn construction_ref() {
         let reference: LowerRef = LowerRef::new("abc").unwrap();
         assert_eq!(reference.value(), "abc");
@@ -426,6 +566,16 @@ mod tests {
     }
 
     #[test]
+    fn value_ref_lifetime() {
+        let owned: Lower = Lower::new("abc").unwrap();
+        let value: &str = {
+            let reference: LowerRef = owned.to_ref();
+            reference.value()
+        };
+        assert_eq!(value, "abc");
+    }
+
+    #[test]
     fn equality() {
         let one: Lower = Lower::new("one").unwrap();
         let two: Lower = Lower::new("two").unwrap();
@@ -442,6 +592,33 @@ mod tests {
         assert_eq!(one_ref, one_ref);
         assert_ne!(one_ref, "two");
         assert_ne!(one_ref, two_ref);
+    }
+
+    #[test]
+    fn equality_strings() {
+        let owned: Lower = Lower::new("abc").unwrap();
+        let reference: LowerRef = owned.to_ref();
+        let str_slice: &str = "abc";
+        let string: String = String::from("abc");
+
+        assert_eq!(owned, *str_slice);
+        assert_eq!(owned, str_slice);
+        assert_eq!(owned, string);
+        assert_eq!(*str_slice, owned);
+        assert_eq!(str_slice, owned);
+        assert_eq!(string, owned);
+
+        assert_eq!(reference, *str_slice);
+        assert_eq!(reference, str_slice);
+        assert_eq!(reference, string);
+        assert_eq!(*str_slice, reference);
+        assert_eq!(str_slice, reference);
+        assert_eq!(string, reference);
+
+        assert_ne!(owned, "xyz");
+        assert_ne!("xyz", owned);
+        assert_ne!(reference, "xyz");
+        assert_ne!("xyz", reference);
     }
 
     #[test]
@@ -627,6 +804,45 @@ mod tests {
             let json: String = serde_json::to_string(&original).unwrap();
             let deserialized: Lower = serde_json::from_str(&json).unwrap();
             assert_eq!(original, deserialized);
+        }
+    }
+
+    /// The macro must not depend on the names in scope at the call site.
+    mod hygiene {
+        struct Shadow;
+
+        type Result<T> = std::result::Result<T, Shadow>;
+        type Option = Shadow;
+        type String = Shadow;
+
+        trait AsRef {}
+        trait Into {}
+        trait From {}
+        trait TryFrom {}
+        trait PartialEq {}
+        trait PartialOrd {}
+        trait ToString {}
+        trait ToOwned {}
+
+        custom_string!(
+            #[doc = "A non-empty string."],
+            NonEmpty,
+            validate_non_empty,
+        );
+
+        fn validate_non_empty(s: &str) -> std::result::Result<(), &'static str> {
+            if s.is_empty() { Err("empty") } else { Ok(()) }
+        }
+
+        #[test]
+        fn shadowed_names() {
+            let owned: NonEmpty = NonEmpty::new("abc").unwrap();
+            let reference: NonEmptyRef = owned.to_ref();
+            assert_eq!(owned, reference);
+            assert_eq!(reference.into_owned(), "abc");
+            assert_eq!(std::string::String::from(reference), "abc");
+            assert!(owned <= reference);
+            assert!(NonEmpty::new("").is_err());
         }
     }
 
